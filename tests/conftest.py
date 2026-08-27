@@ -15,7 +15,7 @@ def create_test_users():
     try:
         users = [
             ("sahil@example.com", "hello123"),
-            ("sahil2@example.com", "hello123"),
+            ("sahil@xample.com", "sahil123"),
         ]
 
         for email, password in users:
@@ -72,8 +72,8 @@ def user_b_headers(client):
     response = client.post(
         "/auth/login",
         json={
-            "email": "sahil2@example.com",
-            "password": "hello123",
+            "email": "sahil@xample.com",
+            "password": "sahil123",
         },
     )
 
