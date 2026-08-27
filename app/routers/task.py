@@ -5,6 +5,8 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.task import Task
 from app.schemas.task import TaskCreate, TaskUpdate, TaskResponse
+from app.dependencies import get_current_user
+from app.models.user import User
 
 from app.services.task import (
     create_task,
@@ -24,9 +26,13 @@ router = APIRouter(
 def create_task_endpoint(
     task: TaskCreate,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
-    return create_task(db, task)
-
+    return create_task(
+        db=db,
+        task_data=task,
+        user_id=current_user.id,
+    )
 
 @router.get("/", response_model=list[TaskResponse])
 def get_tasks_endpoint(
@@ -37,6 +43,7 @@ def get_tasks_endpoint(
     sort_by: str = Query("created_at"),
     order: str = Query("desc"),
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     return get_tasks(
         db=db,
@@ -46,16 +53,24 @@ def get_tasks_endpoint(
         priority=priority,
         sort_by=sort_by,
         order=order,
+        user_id=current_user.id,
     )
 
 @router.get("/{task_id}", response_model=TaskResponse)
 def get_task_endpoint(
     task_id: int,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     task = get_task(db, task_id)
 
     if task is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Task not found",
+        )
+
+    if task.user_id != current_user.id:
         raise HTTPException(
             status_code=404,
             detail="Task not found",
@@ -68,10 +83,17 @@ def update_task_endpoint(
     task_id: int,
     task_update: TaskUpdate,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     task = get_task(db, task_id)
 
     if task is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Task not found",
+        )
+
+    if task.user_id != current_user.id:
         raise HTTPException(
             status_code=404,
             detail="Task not found",
@@ -89,10 +111,17 @@ def update_task_endpoint(
 def delete_task_endpoint(
     task_id: int,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     task = get_task(db, task_id)
 
     if task is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Task not found",
+        )
+
+    if task.user_id != current_user.id:
         raise HTTPException(
             status_code=404,
             detail="Task not found",

@@ -11,5 +11,21 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+  api:
+    build: .
+    container_name: task-management-api
+    environment:
+      APP_NAME: ${APP_NAME}
+      APP_ENV: ${APP_ENV}
+      SECRET_KEY: ${SECRET_KEY}
+      DATABASE_URL: postgresql+psycopg2://postgres:postgres@db:5432/task_management
+      JWT_ALGORITHM: ${JWT_ALGORITHM}
+      REFRESH_TOKEN_EXPIRE_DAYS: ${REFRESH_TOKEN_EXPIRE_DAYS}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES}
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+
 volumes:
   postgres_data:

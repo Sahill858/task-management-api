@@ -5,12 +5,17 @@ from app.models.task import Task
 from app.schemas.task import TaskCreate
 
 
-def create_task(db: Session, task_data: TaskCreate) -> Task:
+def create_task(
+    db: Session,
+    task_data: TaskCreate,
+    user_id: int,
+) -> Task:
     db_task = Task(
         title=task_data.title,
         description=task_data.description,
         status=task_data.status,
         priority=task_data.priority,
+        user_id=user_id,
     )
 
     db.add(db_task)
@@ -28,8 +33,9 @@ def get_tasks(
     priority: str | None,
     sort_by: str,
     order: str,
+    user_id: int,
 ) -> list[Task]:
-    query = select(Task)
+    query = select(Task).where(Task.user_id == user_id)
 
     if status:
         query = query.where(Task.status == status)
