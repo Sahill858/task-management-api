@@ -1,44 +1,94 @@
 # Task Management API
 
-A production-oriented REST API for managing tasks with user authentication, JWT access/refresh tokens, ownership-based authorization, PostgreSQL, Docker, automated testing, and CI/CD.
+A production-style RESTful Task Management API built with **FastAPI, PostgreSQL, SQLAlchemy, JWT authentication, Alembic, Docker, and GitHub Actions CI/CD**.
 
-## 🚀 Features
+The API supports user registration, authentication, refresh-token management, and secure CRUD operations for user-owned tasks.
 
-- User registration and authentication
+## Live Demo
+
+**Swagger API Documentation:**  
+https://task-management-api-rplu.onrender.com/docs
+
+**API Health Check:**  
+https://task-management-api-rplu.onrender.com/
+
+## Features
+
+### Authentication
+
+- User registration
+- Secure password hashing
+- JWT access-token authentication
+- Refresh-token authentication
+- Refresh-token expiration
+- Refresh-token revocation on logout
+- Current-user endpoint
+- Active/inactive user validation
+
+### Task Management
+
+- Create tasks
+- Get authenticated user's tasks
+- Get a specific task
+- Update tasks
+- Delete tasks
+- Pagination using `skip` and `limit`
+- Filter tasks by status
+- Filter tasks by priority
+- Sort tasks by selected fields
+- Ascending/descending ordering
+
+### Security
+
+- Passwords are never stored in plain text
 - JWT-based authentication
-- Access and refresh token support
-- Refresh token revocation on logout
-- Password hashing
-- Task CRUD operations
-- User-based task ownership
-- Authorization to prevent users from accessing or modifying other users' tasks
+- User-specific task authorization
+- Users cannot access, modify, or delete another user's tasks
+- Refresh tokens are stored and tracked in PostgreSQL
+- Environment variables are used for application secrets
+
+### Database & Migrations
+
 - PostgreSQL database
-- SQLAlchemy ORM
+- SQLAlchemy 2.0 ORM
 - Alembic database migrations
-- Pydantic request/response validation
-- Automated API tests with Pytest
-- Docker and Docker Compose support
-- GitHub Actions CI pipeline
-- Interactive Swagger API documentation
+- User-to-task relationship
+- User-to-refresh-token relationship
+- Foreign-key constraints and indexes
 
-## 🛠️ Tech Stack
+### DevOps
 
-| Category | Technology |
-|---|---|
-| Language | Python |
-| Framework | FastAPI |
-| ORM | SQLAlchemy |
-| Database | PostgreSQL |
-| Migrations | Alembic |
-| Authentication | JWT |
-| Validation | Pydantic |
-| Testing | Pytest |
-| Containerization | Docker, Docker Compose |
-| CI/CD | GitHub Actions |
-| API Documentation | Swagger UI / OpenAPI |
-| Version Control | Git, GitHub |
+- Docker support
+- GitHub Actions CI
+- Automated pytest execution
+- Supabase PostgreSQL
+- Render deployment
 
-## 📁 Project Structure
+---
+
+## Tech Stack
+
+| Category          | Technology        |
+| ----------------- | ----------------- |
+| Language          | Python 3.13       |
+| Framework         | FastAPI           |
+| ORM               | SQLAlchemy 2.0    |
+| Database          | PostgreSQL        |
+| Database Hosting  | Supabase          |
+| Migrations        | Alembic           |
+| Authentication    | JWT               |
+| Password Hashing  | Argon2 / pwdlib   |
+| Validation        | Pydantic          |
+| Testing           | Pytest            |
+| Containerization  | Docker            |
+| CI/CD             | GitHub Actions    |
+| Deployment        | Render            |
+| API Documentation | Swagger / OpenAPI |
+| Version Control   | Git / GitHub      |
+
+---
+
+## Project Structure
 
 ```text
 task-management-api/
@@ -55,11 +105,14 @@ task-management-api/
 │   │
 │   ├── schemas/
 │   │   ├── auth.py
-│   │   └── user.py
+│   │   ├── user.py
+│   │   └── task.py
 │   │
 │   ├── services/
 │   │   ├── user.py
 │   │   └── task.py
+│   │
+│   ├── workers/
 │   │
 │   ├── config.py
 │   ├── database.py
@@ -67,154 +120,246 @@ task-management-api/
 │   └── security.py
 │
 ├── alembic/
-│   └── versions/
+│   ├── versions/
+│   └── env.py
 │
 ├── tests/
-│   ├── conftest.py
 │   └── test_tasks.py
 │
-├── .dockerignore
-├── .gitignore
+├── main.py
+├── requirements.txt
 ├── Dockerfile
 ├── docker-compose.yml
 ├── alembic.ini
-├── main.py
-├── requirements.txt
 └── README.md
 ```
 
-## 🔐 Authentication
+---
 
-The API uses JWT-based authentication.
-
-### Authentication flow
-
-```text
-Client
-  │
-  ├── Register
-  │      ↓
-  │   User stored in PostgreSQL
-  │
-  ├── Login
-  │      ↓
-  │   Access Token + Refresh Token
-  │
-  ├── Access protected endpoints
-  │      ↓
-  │   JWT validation
-  │
-  ├── Refresh token
-  │      ↓
-  │   New access token
-  │
-  └── Logout
-         ↓
-     Refresh token revoked
-```
-
-Passwords are stored as password hashes rather than plain-text passwords.
-
-## 📌 API Endpoints
+## API Endpoints
 
 ### Authentication
 
-| Method | Endpoint | Description |
-|---|---|---|
-| POST | `/auth/register` | Register a new user |
-| POST | `/auth/login` | Authenticate user |
-| POST | `/auth/refresh` | Generate a new access token |
-| POST | `/auth/logout` | Revoke refresh token |
-| GET | `/auth/me` | Get current authenticated user |
+| Method | Endpoint         | Description                 | Authentication |
+| ------ | ---------------- | --------------------------- | -------------- |
+| POST   | `/auth/register` | Register a new user         | No             |
+| POST   | `/auth/login`    | Login and receive tokens    | No             |
+| GET    | `/auth/me`       | Get current user            | JWT            |
+| POST   | `/auth/refresh`  | Generate a new access token | Refresh token  |
+| POST   | `/auth/logout`   | Revoke refresh token        | Refresh token  |
 
 ### Tasks
 
-| Method | Endpoint | Description |
-|---|---|---|
-| POST | `/tasks/` | Create a task |
-| GET | `/tasks/` | Get user's tasks |
-| GET | `/tasks/{task_id}` | Get a specific task |
-| PUT | `/tasks/{task_id}` | Update a task |
-| DELETE | `/tasks/{task_id}` | Delete a task |
+| Method | Endpoint           | Description      | Authentication |
+| ------ | ------------------ | ---------------- | -------------- |
+| POST   | `/tasks/`          | Create a task    | JWT            |
+| GET    | `/tasks/`          | Get user's tasks | JWT            |
+| GET    | `/tasks/{task_id}` | Get a task       | JWT            |
+| PATCH  | `/tasks/{task_id}` | Update a task    | JWT            |
+| DELETE | `/tasks/{task_id}` | Delete a task    | JWT            |
 
-All protected task endpoints require authentication.
+### System
 
-## 🛡️ Authorization
+| Method | Endpoint     | Description                 |
+| ------ | ------------ | --------------------------- |
+| GET    | `/`          | API status                  |
+| GET    | `/health/db` | Database connectivity check |
+
+---
+
+## Task Listing
+
+The task listing endpoint supports pagination, filtering, and sorting.
+
+Example:
+
+```text
+GET /tasks/?skip=0&limit=10
+```
+
+Filter by status:
+
+```text
+GET /tasks/?status=pending
+```
+
+Filter by priority:
+
+```text
+GET /tasks/?priority=high
+```
+
+Sort tasks:
+
+```text
+GET /tasks/?sort_by=created_at&order=desc
+```
+
+These parameters can also be combined.
+
+---
+
+## Authentication Flow
+
+The authentication system uses short-lived access tokens and persistent refresh tokens.
+
+```text
+                ┌──────────────┐
+                │    Register  │
+                └──────┬───────┘
+                       │
+                       ▼
+                ┌──────────────┐
+                │     Login    │
+                └──────┬───────┘
+                       │
+              ┌────────┴────────┐
+              ▼                 ▼
+       Access Token       Refresh Token
+              │                 │
+              ▼                 ▼
+        API Requests       PostgreSQL
+              │                 │
+              │          ┌──────┴──────┐
+              │          │   Refresh   │
+              │          └──────┬──────┘
+              │                 │
+              │                 ▼
+              │          New Access Token
+              │
+              ▼
+        Protected API
+```
+
+### Access Token
+
+The access token is used when accessing protected endpoints:
+
+```text
+Authorization: Bearer <access_token>
+```
+
+### Refresh Token
+
+When the access token needs to be renewed, the refresh token is sent to:
+
+```text
+POST /auth/refresh
+```
+
+The server validates:
+
+- Token signature
+- Stored token
+- Revocation status
+- Expiration
+- User ID
+
+A new access token is then generated.
+
+### Logout
+
+When a user logs out, the stored refresh token is marked as revoked.
+
+This prevents the revoked refresh token from being used again.
+
+---
+
+## Authorization
 
 Tasks belong to the user who created them.
 
-For example:
-
-```text
-User A
-  │
-  └── Task #10
-
-User B
-  │
-  └── Cannot access Task #10
-```
-
-The API verifies the authenticated user's identity before allowing access, modification, or deletion of a task.
-
-This prevents unauthorized users from manipulating another user's data.
-
-## 🗄️ Database
-
-The application uses PostgreSQL with SQLAlchemy as the ORM.
-
-Main entities include:
+The relationship is:
 
 ```text
 User
- ├── id
- ├── email
- ├── password_hash
- ├── is_active
- └── created_at
-       │
-       └── Tasks
+ │
+ ├── Task
+ ├── Task
+ └── Task
 ```
 
-Database schema changes are managed using Alembic migrations.
-
-## 🐳 Running with Docker
-
-Make sure Docker Desktop is installed and running.
-
-Start the application:
-
-```bash
-docker compose up --build
-```
-
-The API will be available at:
+When accessing a task, the API verifies:
 
 ```text
-http://localhost:8000
+task.user_id == current_user.id
 ```
 
-Swagger documentation:
+If the task belongs to another user, the API returns:
 
 ```text
-http://localhost:8000/docs
+404 Task not found
 ```
 
-Stop the containers:
+This prevents users from accessing another user's task data.
 
-```bash
-docker compose down
+The same authorization check is applied to:
+
+- GET
+- PATCH
+- DELETE
+
+---
+
+## Database Design
+
+The application currently uses three main tables.
+
+### Users
+
+Stores registered users.
+
+```text
+users
+├── id
+├── email
+├── password_hash
+├── is_active
+└── created_at
 ```
 
-To stop containers and remove the database volume:
+### Tasks
 
-```bash
-docker compose down -v
+Stores tasks belonging to users.
+
+```text
+tasks
+├── id
+├── user_id → users.id
+├── title
+├── description
+├── status
+├── priority
+└── created_at
 ```
 
-> `docker compose down -v` removes the PostgreSQL Docker volume and therefore deletes the local database data.
+### Refresh Tokens
 
-## 💻 Running Locally
+Stores refresh tokens associated with users.
+
+```text
+refresh_tokens
+├── id
+├── token
+├── user_id → users.id
+├── expires_at
+├── is_revoked
+└── created_at
+```
+
+Relationships:
+
+```text
+users
+  │
+  ├──────────────< tasks
+  │
+  └──────────────< refresh_tokens
+```
+
+---
+
+## Local Development
 
 ### 1. Clone the repository
 
@@ -229,6 +374,11 @@ Windows:
 
 ```powershell
 python -m venv venv
+```
+
+Activate it:
+
+```powershell
 venv\Scripts\activate
 ```
 
@@ -247,149 +397,299 @@ pip install -r requirements.txt
 
 ### 4. Configure environment variables
 
-Create a `.env` file:
+Create a `.env` file in the project root:
 
 ```env
 APP_NAME=Task Management API
 APP_ENV=development
+
 SECRET_KEY=your-secret-key
-DATABASE_URL=postgresql://postgres:postgres@localhost:5433/task_management
+
+DATABASE_URL=your-postgresql-database-url
+
 JWT_ALGORITHM=HS256
+
 ACCESS_TOKEN_EXPIRE_MINUTES=30
 REFRESH_TOKEN_EXPIRE_DAYS=7
 ```
 
-Never commit `.env` or real secrets to GitHub.
+Never commit the `.env` file to Git.
 
-### 5. Run the API
+---
+
+## Database Migrations
+
+The project uses Alembic to manage database schema changes.
+
+Apply all migrations:
+
+```bash
+alembic upgrade head
+```
+
+Check the current migration:
+
+```bash
+alembic current
+```
+
+Create a new migration after changing SQLAlchemy models:
+
+```bash
+alembic revision --autogenerate -m "Describe the change"
+```
+
+Then review the generated migration before applying it:
+
+```bash
+alembic upgrade head
+```
+
+---
+
+## Run the Application
+
+Start the FastAPI development server:
 
 ```bash
 uvicorn main:app --reload
 ```
 
-API:
+The API will be available at:
 
 ```text
-http://localhost:8000
+http://127.0.0.1:8000
 ```
 
-Swagger:
+Swagger documentation:
 
 ```text
-http://localhost:8000/docs
-```
-
-## 🧪 Testing
-
-The project uses Pytest for automated testing.
-
-Run:
-
-```bash
-pytest
-```
-
-Current test suite:
-
-```text
-13 passed
-```
-
-The tests cover authentication, task operations, refresh/logout behavior, and authorization between different users.
-
-## 🔄 CI/CD
-
-GitHub Actions automatically runs the test suite when changes are pushed to the repository or a pull request targets the `main` branch.
-
-CI pipeline:
-
-```text
-Git Push / Pull Request
-        ↓
-GitHub Actions
-        ↓
-Set up Python
-        ↓
-Install dependencies
-        ↓
-Start PostgreSQL service
-        ↓
-Run Pytest
-        ↓
-Pass / Fail
-```
-
-A successful pipeline ensures that the automated tests pass before changes are considered ready.
-
-## ⚙️ Environment Variables
-
-| Variable | Description |
-|---|---|
-| `APP_NAME` | Application name |
-| `APP_ENV` | Application environment |
-| `SECRET_KEY` | Secret used for JWT signing |
-| `DATABASE_URL` | PostgreSQL connection URL |
-| `JWT_ALGORITHM` | JWT signing algorithm |
-| `ACCESS_TOKEN_EXPIRE_MINUTES` | Access token lifetime |
-| `REFRESH_TOKEN_EXPIRE_DAYS` | Refresh token lifetime |
-
-## 📖 API Documentation
-
-FastAPI automatically provides interactive API documentation.
-
-Swagger UI:
-
-```text
-http://localhost:8000/docs
+http://127.0.0.1:8000/docs
 ```
 
 ReDoc:
 
 ```text
-http://localhost:8000/redoc
+http://127.0.0.1:8000/redoc
 ```
 
-Swagger can be used to register users, authenticate, obtain tokens, and test protected task endpoints directly from the browser.
+---
 
-## 🎯 What I Learned
+## Running Tests
 
-This project helped me practice real-world backend development concepts including:
+Run the complete test suite:
 
-- REST API design
-- FastAPI application structure
-- Authentication and authorization
-- JWT access and refresh tokens
-- Password hashing
-- SQLAlchemy ORM
-- PostgreSQL database design
-- Database migrations with Alembic
-- Dependency injection
-- Automated API testing
-- Docker containerization
-- Docker Compose
-- Git and GitHub workflows
-- Continuous Integration with GitHub Actions
+```bash
+pytest
+```
 
-## 🔮 Future Improvements
+Current test status:
 
-Possible future improvements include:
+```text
+13 passed
+```
+
+The test suite covers authentication, task operations, token handling, and user-level task authorization.
+
+---
+
+## CI with GitHub Actions
+
+The project uses GitHub Actions to automatically run tests when changes are pushed to the `main` branch or when a pull request targets `main`.
+
+The CI workflow:
+
+```text
+Git Push / Pull Request
+        │
+        ▼
+Checkout Repository
+        │
+        ▼
+Setup Python 3.13
+        │
+        ▼
+Install Dependencies
+        │
+        ▼
+Start PostgreSQL Service
+        │
+        ▼
+Run Pytest
+        │
+        ▼
+   Tests Passed
+```
+
+This helps prevent broken code from being merged into the main branch.
+
+---
+
+## Deployment
+
+The application is deployed using:
+
+```text
+GitHub
+   │
+   ▼
+Render
+   │
+   ▼
+FastAPI Application
+   │
+   ▼
+Supabase PostgreSQL
+```
+
+### Production Components
+
+**Application hosting:** Render
+
+**Database hosting:** Supabase PostgreSQL
+
+**Source control:** GitHub
+
+**CI:** GitHub Actions
+
+### Production Start Command
+
+```bash
+uvicorn main:app --host 0.0.0.0 --port $PORT
+```
+
+---
+
+## Health Checks
+
+Application health:
+
+```text
+GET /
+```
+
+Database health:
+
+```text
+GET /health/db
+```
+
+A successful database health response:
+
+```json
+{
+  "database": "connected"
+}
+```
+
+---
+
+## Example API Workflow
+
+### 1. Register
+
+```http
+POST /auth/register
+```
+
+```json
+{
+  "email": "user@example.com",
+  "password": "securepassword"
+}
+```
+
+### 2. Login
+
+```http
+POST /auth/login
+```
+
+The API returns an access token and refresh token.
+
+### 3. Create a task
+
+Send the access token:
+
+```text
+Authorization: Bearer <access_token>
+```
+
+Then:
+
+```http
+POST /tasks/
+```
+
+Example body:
+
+```json
+{
+  "title": "Complete backend project",
+  "description": "Finish API deployment",
+  "status": "pending",
+  "priority": "high"
+}
+```
+
+### 4. Retrieve tasks
+
+```http
+GET /tasks/
+```
+
+Only tasks belonging to the authenticated user are returned.
+
+---
+
+## Security Considerations
+
+The project follows several common backend security practices:
+
+- Password hashing instead of storing plain-text passwords
+- JWT authentication for protected endpoints
+- Refresh-token persistence and revocation
+- Environment-based configuration
+- Database foreign-key relationships
+- User-level authorization
+- Generic invalid-login error responses
+- Production secrets kept outside source control
+
+---
+
+## Future Improvements
+
+Potential improvements for future versions:
 
 - Role-based access control
-- Task filtering and pagination
+- Email verification
+- Password reset functionality
+- Task due dates
+- Task categories/tags
+- Soft deletion
+- Rate limiting
 - Redis caching
-- Background task processing
-- Production deployment
-- API rate limiting
-- Improved logging and monitoring
+- Background jobs
+- Structured application logging
+- Centralized exception handling
+- API versioning
+- Docker-based production deployment
+- Monitoring and observability
+- Expanded integration and security testing
 
-## 👨‍💻 Author
+---
+
+## Author
 
 **Sahil Kumar Sahu**
 
 Python Backend Developer
 
-GitHub: `https://github.com/Sahill858`
+- GitHub: https://github.com/Sahill858
+- LinkedIn: https://linkedin.com/in/sahilsahuofficial
 
 ---
 
-⭐ If you find this project useful, feel free to explore the repository and API documentation.
+## License
+
+This project is intended for learning, portfolio demonstration, and backend development practice.
